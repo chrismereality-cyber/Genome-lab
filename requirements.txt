@@ -1,0 +1,5 @@
+﻿streamlit
+biopython
+pandas
+fastapi
+uvicorn
