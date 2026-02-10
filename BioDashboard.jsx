@@ -1,10 +1,13 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 
 const BioDashboard = () => {
   const [dna, setDna] = useState("ATGCGATCGATCGATCGATC");
-  const [history, setHistory] = useState([]); // Stores previous generations
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isWaking, setIsWaking] = useState(false);
+
+  // Stats for the "Lab Report"
+  const getAverageStability = () => history.length ? (history.reduce((acc, curr) => acc + curr.analysis.stability, 0) / history.length).toFixed(2) : 0;
 
   const runEvolution = async () => {
     setLoading(true);
@@ -14,24 +17,14 @@ const BioDashboard = () => {
       const response = await fetch("https://genome-lab.onrender.com/evolve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          dna: dna,
-          mutation_rate: 5.0, // Increased for visible changes
-          temp: 37,
-          ph: 7.0
-        })
+        body: JSON.stringify({ dna, mutation_rate: 5.0, temp: 37, ph: 7.0 })
       });
       
-      if (!response.ok) throw new Error("Backend offline");
-      
       const data = await response.json();
-      
-      // Update the current DNA to the new mutated one for the next click
       setDna(data.dna);
-      
-      // Add the result to the beginning of the history array
       setHistory(prev => [{
         timestamp: new Date().toLocaleTimeString(),
+        gen: prev.length + 1,
         ...data
       }, ...prev]);
 
@@ -44,62 +37,80 @@ const BioDashboard = () => {
     }
   };
 
+  const downloadData = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(history));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", "genomelab_results.json");
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+  };
+
   return (
-    <div style={{ padding: '20px', background: '#0f172a', color: '#f8fafc', minHeight: '100vh', fontFamily: 'sans-serif' }}>
-      <header style={{ textAlign: 'center', marginBottom: '30px' }}>
-        <h1 style={{ color: '#60a5fa', margin: '0' }}>🧬 GenomeLab Phase 2</h1>
-        <p style={{ color: '#94a3b8' }}>Tracking Evolutionary Stability</p>
+    <div style={{ padding: '20px', background: '#020617', color: '#f8fafc', minHeight: '100vh', fontFamily: 'monospace' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #1e293b', paddingBottom: '20px', marginBottom: '30px' }}>
+        <div>
+          <h1 style={{ color: '#3b82f6', margin: 0 }}>🧬 GENOMELAB V2.5</h1>
+          <p style={{ color: '#64748b', margin: 0 }}>Integrated Biophysics & Mutation Tracker</p>
+        </div>
+        <button onClick={downloadData} style={{ background: '#1e293b', color: '#60a5fa', border: '1px solid #3b82f6', padding: '10px 20px', cursor: 'pointer', borderRadius: '4px' }}>
+          EXPORT DATA (.JSON)
+        </button>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: '20px' }}>
         
-        {/* Left Column: Controls & Current DNA */}
-        <section style={{ background: '#1e293b', padding: '25px', borderRadius: '12px' }}>
-          <label style={{ color: '#cbd5e1', fontWeight: 'bold' }}>Current DNA Sequence (Auto-updates on Evolve):</label>
-          <textarea 
-            value={dna} 
-            onChange={(e) => setDna(e.target.value)}
-            style={{ width: '100%', height: '80px', background: '#0f172a', color: '#10b981', border: '1px solid #334155', borderRadius: '8px', padding: '12px', marginTop: '10px', fontFamily: 'monospace' }}
-          />
-          
-          <button 
-            onClick={runEvolution}
-            disabled={loading}
-            style={{ width: '100%', padding: '15px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', marginTop: '20px' }}
-          >
-            {loading ? (isWaking ? "WAKING UP ENGINE..." : "MUTATING...") : "STEP EVOLUTION (GEN +1)"}
-          </button>
+        {/* WORKSTATION */}
+        <main>
+          <div style={{ background: '#0f172a', padding: '20px', borderRadius: '8px', border: '1px solid #1e293b' }}>
+            <h2 style={{ fontSize: '1rem', color: '#94a3b8' }}>LIVE SEQUENCE</h2>
+            <div style={{ background: '#020617', padding: '15px', color: '#10b981', borderRadius: '4px', wordBreak: 'break-all', border: '1px solid #334155', marginBottom: '20px' }}>
+              {dna}
+            </div>
+            
+            <button 
+              onClick={runEvolution} 
+              disabled={loading}
+              style={{ width: '100%', padding: '20px', background: '#3b82f6', color: 'white', fontWeight: 'bold', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+            >
+              {loading ? (isWaking ? "WAKING ENGINE..." : "SIMULATING...") : "EXECUTE MUTATION STEP"}
+            </button>
+          </div>
 
+          {/* QUICK ANALYTICS BARS */}
           {history.length > 0 && (
-            <div style={{ marginTop: '30px', padding: '20px', background: '#0f172a', borderRadius: '8px', borderLeft: '4px solid #3b82f6' }}>
-              <h3 style={{ margin: '0 0 10px 0', color: '#3b82f6' }}>Current Champion Stats</h3>
-              <p><strong>Protein:</strong> {history[0].analysis.protein}</p>
-              <div style={{ display: 'flex', gap: '20px' }}>
-                <div>Stability: <span style={{ color: history[0].analysis.stability < 40 ? '#10b981' : '#f87171' }}>{history[0].analysis.stability.toFixed(2)}</span></div>
-                <div>Helix: {history[0].analysis.helix.toFixed(1)}%</div>
-              </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginTop: '20px' }}>
+              <StatCard label="Avg Stability" value={getAverageStability()} color="#10b981" />
+              <StatCard label="Latest Helix" value={history[0].analysis.helix.toFixed(1) + "%"} color="#3b82f6" />
+              <StatCard label="Total Gens" value={history.length} color="#a855f7" />
             </div>
           )}
-        </section>
+        </main>
 
-        {/* Right Column: Mutation History Log */}
-        <aside style={{ background: '#1e293b', padding: '20px', borderRadius: '12px', height: '600px', overflowY: 'auto' }}>
-          <h3 style={{ margin: '0 0 15px 0', fontSize: '1.1rem', borderBottom: '1px solid #334155', paddingBottom: '10px' }}>Mutation History</h3>
-          {history.length === 0 && <p style={{ color: '#64748b', fontSize: '0.9rem' }}>No data yet. Run a simulation to see history.</p>}
-          {history.map((entry, idx) => (
-            <div key={idx} style={{ padding: '10px', borderBottom: '1px solid #334155', fontSize: '0.85rem' }}>
-              <div style={{ color: '#94a3b8' }}>[{entry.timestamp}] Gen {history.length - idx}</div>
+        {/* LAB LOGS */}
+        <aside style={{ background: '#0f172a', borderLeft: '1px solid #1e293b', padding: '20px', height: '80vh', overflowY: 'auto' }}>
+          <h2 style={{ fontSize: '1rem', color: '#94a3b8', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>MUTATION LOG</h2>
+          {history.map((log, i) => (
+            <div key={i} style={{ padding: '10px 0', borderBottom: '1px solid #1e293b', fontSize: '0.8rem' }}>
+              <span style={{ color: '#64748b' }}>[{log.timestamp}]</span> <span style={{ color: '#3b82f6' }}>Gen {log.gen}</span>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
-                <span>Stability: <strong>{entry.analysis.stability.toFixed(1)}</strong></span>
-                <span style={{ color: '#60a5fa' }}>Helix: {entry.analysis.helix.toFixed(0)}%</span>
+                <span>Stability: <b style={{ color: log.analysis.stability < 40 ? '#10b981' : '#ef4444' }}>{log.analysis.stability.toFixed(2)}</b></span>
+                <span>Isoelectric: {log.analysis.isoelectric_point?.toFixed(2) || 'N/A'}</span>
               </div>
             </div>
           ))}
         </aside>
-
       </div>
     </div>
   );
 };
+
+const StatCard = ({ label, value, color }) => (
+  <div style={{ background: '#0f172a', padding: '15px', borderRadius: '8px', border: `1px solid ${color}33`, borderTop: `4px solid ${color}` }}>
+    <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>{label}</div>
+    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#f8fafc' }}>{value}</div>
+  </div>
+);
 
 export default BioDashboard;
