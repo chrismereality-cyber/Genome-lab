@@ -5,12 +5,10 @@ from bio.engine import EvolutionEngine
 from physics.dynamics import PhysicsLayer
 from utils.oath import check_oath
 
-# Initialize Core Modules
-app = FastAPI(title="GenomeLab Modular API")
+app = FastAPI(title="GenomeLab Phase 2")
 bio_engine = EvolutionEngine()
 physics_engine = PhysicsLayer()
 
-# Enable CORS for Vercel Frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,34 +19,30 @@ app.add_middleware(
 class EvolveRequest(BaseModel):
     dna: str
     mutation_rate: float = 1.0
-    temp: float = 37.0
-    ph: float = 7.0
-
-@app.get("/health")
-def health():
-    return {"status": "online", "modules": ["bio", "physics", "oath"]}
 
 @app.post("/evolve")
 async def evolve(req: EvolveRequest):
-    # 1. Ethical Check
-    if not check_oath(f"Evolving sequence: {req.dna[:10]}..."):
-        raise HTTPException(status_code=403, detail="Ethical Oath Violation")
+    if not check_oath("Executing Phase 2 Evolution"):
+        raise HTTPException(status_code=403, detail="Oath Violation")
 
-    # 2. Bio Mutation & Translation
-    bio_engine.mutation_rate = req.mutation_rate
+    # Mutate and Translate
     mutated_dna = bio_engine.mutate(req.dna)
     protein = bio_engine.translate(mutated_dna)
 
-    # 3. Physics Analysis (Phase 3 Integration)
+    # NEW: Phase 2 Real Analysis
+    bio_analysis = bio_engine.analyze_protein(protein)
+    
+    # Physics Placeholder
     physics_data = physics_engine.calculate_energy(protein)
 
-    # 4. Return Integrated Results
     return {
         "dna": mutated_dna,
         "analysis": {
             "protein": protein,
-            "stability": 40.0, # Placeholder for Phase 2 stability engine
-            "helix": 15.5,
+            "stability": bio_analysis["stability"],
+            "helix": bio_analysis["helix"],
+            "aromaticity": bio_analysis["aromaticity"],
+            "weight": bio_analysis["molecular_weight"],
             "energy": physics_data
         }
     }
